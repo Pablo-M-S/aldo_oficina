@@ -1,0 +1,321 @@
+// Schema de domínio — NXL Oficina
+// Decisão de arquitetura: Role como enum no User (RBAC simples via guard),
+// em vez de tabelas Role/Permission separadas. Suficiente para os 5 perfis
+// do escopo atual; migrar para RBAC tabelado é um passo isolado e não bloqueante.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  MECHANIC
+  ATTENDANT
+  CUSTOMER
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum WorkOrderStatus {
+  OPEN
+  DIAGNOSING
+  AWAITING_APPROVAL
+  IN_PROGRESS
+  AWAITING_PARTS
+  COMPLETED
+  CANCELLED
+  DELIVERED
+}
+
+enum ResourceType {
+  LIFT
+  BAY
+  MECHANIC
+  EQUIPMENT
+}
+
+enum InventoryMovementType {
+  ENTRY
+  EXIT
+  ADJUSTMENT
+  WORK_ORDER_USAGE
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  REFUNDED
+  FAILED
+}
+
+enum PaymentMethod {
+  CASH
+  DEBIT_CARD
+  CREDIT_CARD
+  PIX
+  BANK_TRANSFER
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(CUSTOMER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customer   Customer?
+  auditLogs  AuditLog[]
+  workOrders WorkOrder[] @relation("AssignedMechanic")
+
+  @@index([role])
+  @@map("users")
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone     String?
+  document  String?  @unique
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicles     Vehicle[]
+  appointments Appointment[]
+  workOrders   WorkOrder[]
+  sales        Sale[]
+
+  @@map("customers")
+}
+
+model Vehicle {
+  id           String   @id @default(uuid())
+  customerId   String
+  customer     Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  brand        String
+  model        String
+  year         Int
+  plate        String   @unique
+  mileage      Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  appointments Appointment[]
+  workOrders   WorkOrder[]
+
+  @@index([customerId])
+  @@map("vehicles")
+}
+
+model Service {
+  id                 String   @id @default(uuid())
+  name               String
+  description        String?
+  price              Decimal  @db.Decimal(10, 2)
+  durationMinutes    Int
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  requiredResourceType ResourceType?
+
+  appointments   Appointment[]
+  workOrderItems WorkOrderItem[]
+
+  @@map("services")
+}
+
+// Recurso físico da oficina (elevador, box, mecânico, equipamento).
+// A disponibilidade é calculada por recurso, nunca por horário global.
+model Resource {
+  id        String       @id @default(uuid())
+  name      String
+  type      ResourceType
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  appointments Appointment[]
+
+  @@index([type])
+  @@map("resources")
+}
+
+// Reserva de um recurso em um intervalo. A unicidade de conflito é garantida
+// em código (SchedulingService) via checagem de sobreposição antes do insert,
+// dentro de uma transação com lock, e reforçada aqui por índice composto
+// para acelerar a query de overlap.
+model Appointment {
+  id         String            @id @default(uuid())
+  customerId String
+  customer   Customer          @relation(fields: [customerId], references: [id])
+  vehicleId  String
+  vehicle    Vehicle           @relation(fields: [vehicleId], references: [id])
+  serviceId  String
+  service    Service           @relation(fields: [serviceId], references: [id])
+  resourceId String
+  resource   Resource          @relation(fields: [resourceId], references: [id])
+  startsAt   DateTime
+  endsAt     DateTime
+  status     AppointmentStatus @default(SCHEDULED)
+  notes      String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  workOrder WorkOrder?
+
+  @@index([resourceId, startsAt, endsAt])
+  @@index([customerId])
+  @@map("appointments")
+}
+
+model Product {
+  id            String   @id @default(uuid())
+  sku           String   @unique
+  name          String
+  description   String?
+  cost          Decimal  @db.Decimal(10, 2)
+  price         Decimal  @db.Decimal(10, 2)
+  quantity      Int      @default(0)
+  minimumStock  Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  inventoryMovements InventoryMovement[]
+  workOrderItems     WorkOrderItem[]
+  saleItems          SaleItem[]
+
+  @@map("products")
+}
+
+model InventoryMovement {
+  id        String                @id @default(uuid())
+  productId String
+  product   Product               @relation(fields: [productId], references: [id])
+  type      InventoryMovementType
+  quantity  Int
+  reason    String?
+  createdAt DateTime              @default(now())
+
+  @@index([productId])
+  @@map("inventory_movements")
+}
+
+model WorkOrder {
+  id            String          @id @default(uuid())
+  customerId    String
+  customer      Customer        @relation(fields: [customerId], references: [id])
+  vehicleId     String
+  vehicle       Vehicle         @relation(fields: [vehicleId], references: [id])
+  appointmentId String?         @unique
+  appointment   Appointment?    @relation(fields: [appointmentId], references: [id])
+  mechanicId    String?
+  mechanic      User?           @relation("AssignedMechanic", fields: [mechanicId], references: [id])
+  diagnosis     String?
+  status        WorkOrderStatus @default(OPEN)
+  laborCost     Decimal         @default(0) @db.Decimal(10, 2)
+  totalCost     Decimal         @default(0) @db.Decimal(10, 2)
+  notes         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  items WorkOrderItem[]
+  sale  Sale?
+
+  @@index([customerId])
+  @@index([status])
+  @@map("work_orders")
+}
+
+model WorkOrderItem {
+  id           String    @id @default(uuid())
+  workOrderId  String
+  workOrder    WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  serviceId    String?
+  service      Service?  @relation(fields: [serviceId], references: [id])
+  productId    String?
+  product      Product?  @relation(fields: [productId], references: [id])
+  quantity     Int       @default(1)
+  unitPrice    Decimal   @db.Decimal(10, 2)
+  createdAt    DateTime  @default(now())
+
+  @@index([workOrderId])
+  @@map("work_order_items")
+}
+
+model Sale {
+  id          String        @id @default(uuid())
+  customerId  String
+  customer    Customer      @relation(fields: [customerId], references: [id])
+  workOrderId String?       @unique
+  workOrder   WorkOrder?    @relation(fields: [workOrderId], references: [id])
+  totalAmount Decimal       @db.Decimal(10, 2)
+  createdAt   DateTime      @default(now())
+
+  items    SaleItem[]
+  payments Payment[]
+
+  @@index([customerId])
+  @@map("sales")
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+
+  @@index([saleId])
+  @@map("sale_items")
+}
+
+model Payment {
+  id        String        @id @default(uuid())
+  saleId    String
+  sale      Sale          @relation(fields: [saleId], references: [id])
+  amount    Decimal       @db.Decimal(10, 2)
+  method    PaymentMethod
+  status    PaymentStatus @default(PENDING)
+  paidAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([saleId])
+  @@map("payments")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([userId])
+  @@map("audit_logs")
+}
