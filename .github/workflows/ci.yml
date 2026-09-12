@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: oficina
+          POSTGRES_PASSWORD: oficina
+          POSTGRES_DB: oficina_db_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U oficina"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: "postgresql://oficina:oficina@localhost:5432/oficina_db_test?schema=public"
+      JWT_SECRET: "ci-secret"
+      JWT_EXPIRES_IN: "8h"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Gerar Prisma Client
+        run: npx prisma generate
+
+      - name: Aplicar migrations
+        run: npx prisma migrate deploy
+
+      - name: Testes unitários
+        run: npm run test
+
+      - name: Build
+        run: npm run build
