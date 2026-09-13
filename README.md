@@ -66,12 +66,24 @@ que apenas se tocam (não é conflito) e separação total.
 - **Revalidação do usuário a cada request** na `JwtStrategy` (busca no banco,
   não confia apenas no payload do token) — revoga acesso imediatamente se o
   usuário for desativado, mesmo com um token ainda válido.
+- **Estoque só muda via `InventoryMovement`.** `Product.quantity` nunca é
+  editado diretamente — toda alteração (entrada, saída, ajuste, uso em OS)
+  passa por `InventoryService.adjustStock`/`consumeForWorkOrder`, que grava o
+  movimento na mesma transação. Isso garante que o saldo do produto sempre
+  seja reconstruível a partir do histórico.
+- **Baixa de estoque e criação de item da OS são atômicas.** Ao lançar uma
+  peça em uma ordem de serviço (`WorkOrdersService.addItem`), a baixa de
+  estoque e a criação do `WorkOrderItem` acontecem na mesma transação: ou as
+  duas ou nenhuma. Sem isso, uma falha no meio do processo criaria um item
+  "fantasma" sem estoque correspondente baixado (ou vice-versa).
+- **Status da OS como máquina de estados explícita** (`ALLOWED_TRANSITIONS`
+  em `WorkOrdersService`), não um enum solto que qualquer papel altera
+  livremente. Pular etapas (ex.: `OPEN` → `COMPLETED` direto) é rejeitado.
 
 ## Roadmap (próximas fases)
 
-1. Ordens de serviço (`WorkOrder`/`WorkOrderItem`) — schema já modelado, faltam
-   service/controller.
-2. Produtos, estoque e movimentações (`Product`/`InventoryMovement`).
+1. ~~Ordens de serviço (`WorkOrder`/`WorkOrderItem`)~~ — feito nesta sessão.
+2. ~~Produtos, estoque e movimentações (`Product`/`InventoryMovement`)~~ — feito nesta sessão.
 3. Vendas e pagamentos (`Sale`/`SaleItem`/`Payment`).
 4. Painel administrativo (frontend Next.js consumindo esta API).
 5. Notificações (agendamento, andamento, conclusão).

@@ -9,6 +9,8 @@ import { VehiclesModule } from './vehicles/vehicles.module';
 import { ServiceCatalogModule } from './service-catalog/service-catalog.module';
 import { ResourcesModule } from './resources/resources.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
+import { InventoryModule } from './inventory/inventory.module';
+import { WorkOrdersModule } from './work-orders/work-orders.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -23,6 +25,8 @@ import { RolesGuard } from './common/guards/roles.guard';
     ServiceCatalogModule,
     ResourcesModule,
     SchedulingModule,
+    InventoryModule,
+    WorkOrdersModule,
   ],
   providers: [
     // Ordem importa: rate limit primeiro, depois autenticação, depois RBAC.
