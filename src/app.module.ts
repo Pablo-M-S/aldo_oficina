@@ -11,6 +11,7 @@ import { ResourcesModule } from './resources/resources.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { WorkOrdersModule } from './work-orders/work-orders.module';
+import { SalesModule } from './sales/sales.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
 
@@ -27,6 +28,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     SchedulingModule,
     InventoryModule,
     WorkOrdersModule,
+    SalesModule,
   ],
   providers: [
     // Ordem importa: rate limit primeiro, depois autenticação, depois RBAC.

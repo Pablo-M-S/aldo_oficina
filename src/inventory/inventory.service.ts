@@ -109,10 +109,37 @@ export class InventoryService {
    * WorkOrdersService (não exposto como rota própria) para manter a criação
    * do WorkOrderItem e a baixa de estoque atômicas na mesma transação do chamador.
    */
-  async consumeForWorkOrder(
+  async consumeForWorkOrder(tx: Prisma.TransactionClient, productId: string, quantity: number) {
+    return this.decrementStockInTransaction(
+      tx,
+      productId,
+      quantity,
+      InventoryMovementType.WORK_ORDER_USAGE,
+      'Uso em ordem de serviço',
+    );
+  }
+
+  /**
+   * Consumo de peça por uma venda direta (checkout de produto, fora de uma
+   * OS). Mesmo princípio: chamado pelo SalesService dentro da transação de
+   * criação da venda.
+   */
+  async consumeForSale(tx: Prisma.TransactionClient, productId: string, quantity: number) {
+    return this.decrementStockInTransaction(
+      tx,
+      productId,
+      quantity,
+      InventoryMovementType.EXIT,
+      'Venda de produto',
+    );
+  }
+
+  private async decrementStockInTransaction(
     tx: Prisma.TransactionClient,
     productId: string,
     quantity: number,
+    type: InventoryMovementType,
+    reason: string,
   ) {
     const product = await tx.product.findUnique({ where: { id: productId } });
     if (!product || !product.isActive) {
@@ -130,12 +157,7 @@ export class InventoryService {
     });
 
     await tx.inventoryMovement.create({
-      data: {
-        productId,
-        type: InventoryMovementType.WORK_ORDER_USAGE,
-        quantity,
-        reason: 'Uso em ordem de serviço',
-      },
+      data: { productId, type, quantity, reason },
     });
 
     return product;

@@ -79,12 +79,21 @@ que apenas se tocam (não é conflito) e separação total.
 - **Status da OS como máquina de estados explícita** (`ALLOWED_TRANSITIONS`
   em `WorkOrdersService`), não um enum solto que qualquer papel altera
   livremente. Pular etapas (ex.: `OPEN` → `COMPLETED` direto) é rejeitado.
+- **Venda a partir de OS não duplica baixa de estoque.** As peças já foram
+  descontadas quando os itens foram lançados na OS; `SalesService.createFromWorkOrder`
+  só consolida o valor (mão de obra + itens) em um registro cobrável.
+  A venda avulsa pelo carrinho (`createFromCart`) é quem de fato decrementa
+  estoque, via `InventoryService.consumeForSale`.
+- **Pagamento nunca ultrapassa o saldo em aberto.** `SalesService.registerPayment`
+  calcula o saldo restante a partir da soma dos pagamentos já registrados e
+  rejeita qualquer valor acima disso — evita saldo negativo por erro de
+  digitação no caixa.
 
 ## Roadmap (próximas fases)
 
-1. ~~Ordens de serviço (`WorkOrder`/`WorkOrderItem`)~~ — feito nesta sessão.
-2. ~~Produtos, estoque e movimentações (`Product`/`InventoryMovement`)~~ — feito nesta sessão.
-3. Vendas e pagamentos (`Sale`/`SaleItem`/`Payment`).
+1. ~~Ordens de serviço (`WorkOrder`/`WorkOrderItem`)~~ — feito.
+2. ~~Produtos, estoque e movimentações (`Product`/`InventoryMovement`)~~ — feito.
+3. ~~Vendas e pagamentos (`Sale`/`SaleItem`/`Payment`)~~ — feito.
 4. Painel administrativo (frontend Next.js consumindo esta API).
 5. Notificações (agendamento, andamento, conclusão).
 6. MFA para perfis administrativos.
