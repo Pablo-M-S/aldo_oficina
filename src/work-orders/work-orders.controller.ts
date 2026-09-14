@@ -21,16 +21,26 @@ export class WorkOrdersController {
     return this.workOrdersService.create(dto, user);
   }
 
-  @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.MECHANIC, Role.CUSTOMER)
-  @Get(':id')
-  findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
-    return this.workOrdersService.findOne(id, user);
+  // Rotas estáticas ('', 'by-customer/:id') declaradas antes de ':id' por
+  // convenção de legibilidade. Não há ambiguidade real de roteamento aqui —
+  // cada uma tem uma quantidade diferente de segmentos de path — mas manter
+  // as fixas primeiro evita qualquer dúvida ao adicionar rotas novas depois.
+  @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.MECHANIC)
+  @Get()
+  findAllOpen() {
+    return this.workOrdersService.findAllOpen();
   }
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.CUSTOMER)
   @Get('by-customer/:customerId')
   findAllForCustomer(@Param('customerId') customerId: string) {
     return this.workOrdersService.findAllForCustomer(customerId);
+  }
+
+  @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.MECHANIC, Role.CUSTOMER)
+  @Get(':id')
+  findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.workOrdersService.findOne(id, user);
   }
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.MECHANIC)

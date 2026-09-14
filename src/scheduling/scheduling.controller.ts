@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { SchedulingService } from './scheduling.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
@@ -18,6 +18,13 @@ export class SchedulingController {
   @Post()
   create(@Body() dto: CreateAppointmentDto, @CurrentUser() user: AuthenticatedUser) {
     return this.schedulingService.createAppointment(dto, user);
+  }
+
+  // Agenda administrativa do dia — não confundir com o histórico do cliente.
+  @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.MECHANIC)
+  @Get()
+  findForDate(@Query('date') date: string) {
+    return this.schedulingService.findForDate(date);
   }
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.CUSTOMER)

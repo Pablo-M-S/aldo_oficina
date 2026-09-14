@@ -142,6 +142,27 @@ export class SchedulingService {
   }
 
   /**
+   * Lista os agendamentos de um dia (agenda administrativa). Sem filtro por
+   * customerId de propósito — esta rota é só para staff (ver RolesGuard no
+   * controller); o cliente vê os próprios agendamentos por outro caminho.
+   */
+  async findForDate(date: string) {
+    const dayStart = new Date(`${date}T00:00:00`);
+    const dayEnd = new Date(`${date}T23:59:59`);
+
+    return this.prisma.appointment.findMany({
+      where: { startsAt: { gte: dayStart, lte: dayEnd } },
+      include: {
+        customer: { include: { user: { select: { name: true } } } },
+        vehicle: true,
+        service: true,
+        resource: true,
+      },
+      orderBy: { startsAt: 'asc' },
+    });
+  }
+
+  /**
    * Gera os horários livres de um recurso em uma data, em passos de 30min,
    * dentro do expediente da oficina, descontando os intervalos já ocupados.
    */

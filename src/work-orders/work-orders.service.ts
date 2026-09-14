@@ -108,6 +108,21 @@ export class WorkOrdersService {
   }
 
   /**
+   * Visão administrativa: todas as OS em andamento (exclui finalizadas por
+   * padrão para não poluir o painel do dia a dia com histórico encerrado).
+   */
+  findAllOpen() {
+    return this.prisma.workOrder.findMany({
+      where: { status: { notIn: [WorkOrderStatus.CANCELLED, WorkOrderStatus.DELIVERED] } },
+      include: {
+        customer: { include: { user: { select: { name: true } } } },
+        vehicle: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
    * Adiciona um item (serviço ou peça) à OS. Se for peça, a baixa de estoque
    * acontece na MESMA transação da criação do item: ou os dois acontecem, ou
    * nenhum acontece — nunca um WorkOrderItem "órfão" sem estoque baixado.
