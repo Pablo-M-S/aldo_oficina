@@ -24,6 +24,12 @@ export class VehiclesController {
     return this.vehiclesService.create(dto, user, customerId);
   }
 
+  @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.MECHANIC)
+  @Get()
+  search(@Query('q') query?: string) {
+    return this.vehiclesService.search(query);
+  }
+
   @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.CUSTOMER)
   @Get('by-customer/:customerId')
   findAllForCustomer(@Param('customerId') customerId: string) {

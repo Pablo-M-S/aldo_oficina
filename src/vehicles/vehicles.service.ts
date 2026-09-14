@@ -44,6 +44,28 @@ export class VehiclesService {
     return this.prisma.vehicle.findMany({ where: { customerId }, orderBy: { createdAt: 'desc' } });
   }
 
+  /**
+   * Busca administrativa: encontrar um veículo pela placa é o caso de uso
+   * mais comum no balcão (cliente chega, informa a placa) — muito mais
+   * direto do que navegar por cliente primeiro.
+   */
+  async search(query?: string) {
+    return this.prisma.vehicle.findMany({
+      where: query
+        ? {
+            OR: [
+              { plate: { contains: query, mode: 'insensitive' } },
+              { brand: { contains: query, mode: 'insensitive' } },
+              { model: { contains: query, mode: 'insensitive' } },
+            ],
+          }
+        : undefined,
+      include: { customer: { include: { user: { select: { name: true } } } } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
   async findOne(id: string, requester: AuthenticatedUser) {
     const vehicle = await this.prisma.vehicle.findUnique({
       where: { id },
