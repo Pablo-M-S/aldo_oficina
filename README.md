@@ -93,6 +93,15 @@ que apenas se tocam (não é conflito) e separação total.
   administrativo (`aldocars-painel`): antes só existiam consultas por
   cliente, sem visão geral para a equipe (a busca de veículo por placa é o
   caso de uso mais comum no balcão).
+- **Correção de IDOR nas consultas "por cliente".** `findAllForCustomer` em
+  `vehicles`, `work-orders` e `sales`, além de `CustomersService.findOne`,
+  aceitavam qualquer `customerId`/`id` na URL sem checar se pertencia a quem
+  fez a requisição — um CUSTOMER autenticado podia trocar o UUID e ver
+  veículos, OS ou vendas de outro cliente. Corrigido: quando o requisitante
+  é CUSTOMER, o id informado precisa bater com o `customerId` do próprio
+  usuário, senão retorna 403. Também foi adicionado `GET /customers/me`,
+  para o próprio cliente descobrir seu `customerId` sem precisar sabê-lo de
+  antemão — necessário para o site do cliente (`aldocars-site`) funcionar.
 
 ## Roadmap (próximas fases)
 

@@ -40,8 +40,23 @@ export class VehiclesService {
     return this.prisma.vehicle.create({ data: { ...dto, customerId } });
   }
 
-  async findAllForCustomer(customerId: string) {
+  async findAllForCustomer(customerId: string, requester: AuthenticatedUser) {
+    await this.assertCanAccessCustomer(customerId, requester);
     return this.prisma.vehicle.findMany({ where: { customerId }, orderBy: { createdAt: 'desc' } });
+  }
+
+  /**
+   * Reutilizado por toda consulta "por cliente": sem isso, um CUSTOMER
+   * autenticado poderia trocar o :customerId na URL e ver dados de outro
+   * cliente (IDOR/BOLA) — a checagem de papel sozinha (RolesGuard) não
+   * impede isso, só a comparação de dono é que impede.
+   */
+  private async assertCanAccessCustomer(customerId: string, requester: AuthenticatedUser): Promise<void> {
+    if (requester.role !== Role.CUSTOMER) return;
+    const ownCustomer = await this.prisma.customer.findUnique({ where: { userId: requester.sub } });
+    if (!ownCustomer || ownCustomer.id !== customerId) {
+      throw new ForbiddenException('Você não tem acesso aos dados deste cliente.');
+    }
   }
 
   /**

@@ -19,10 +19,20 @@ export class CustomersController {
     return this.customersService.findAll();
   }
 
+  // Precisa vir ANTES de ':id' — aqui os dois têm o mesmo formato de path
+  // (um segmento), então 'me' seria capturado como valor de :id se viesse
+  // depois. Diferente do caso de 'by-customer/:id' nos outros controllers,
+  // que tem formato de path diferente e não colide.
+  @Roles(Role.CUSTOMER)
+  @Get('me')
+  findMe(@CurrentUser() user: AuthenticatedUser) {
+    return this.customersService.findMe(user);
+  }
+
   @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.CUSTOMER)
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.customersService.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.customersService.findOne(id, user);
   }
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.CUSTOMER)

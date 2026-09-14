@@ -43,8 +43,8 @@ export class SalesController {
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.CUSTOMER)
   @Get('by-customer/:customerId')
-  findAllForCustomer(@Param('customerId') customerId: string) {
-    return this.salesService.findAllForCustomer(customerId);
+  findAllForCustomer(@Param('customerId') customerId: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.salesService.findAllForCustomer(customerId, user);
   }
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT)

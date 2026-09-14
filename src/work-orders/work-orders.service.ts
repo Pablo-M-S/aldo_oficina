@@ -99,12 +99,21 @@ export class WorkOrdersService {
     return workOrder;
   }
 
-  findAllForCustomer(customerId: string) {
+  async findAllForCustomer(customerId: string, requester: AuthenticatedUser) {
+    await this.assertCanAccessCustomer(customerId, requester);
     return this.prisma.workOrder.findMany({
       where: { customerId },
       include: { items: true },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  private async assertCanAccessCustomer(customerId: string, requester: AuthenticatedUser): Promise<void> {
+    if (requester.role !== Role.CUSTOMER) return;
+    const ownCustomer = await this.prisma.customer.findUnique({ where: { userId: requester.sub } });
+    if (!ownCustomer || ownCustomer.id !== customerId) {
+      throw new ForbiddenException('Você não tem acesso aos dados deste cliente.');
+    }
   }
 
   /**

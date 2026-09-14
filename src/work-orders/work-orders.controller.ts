@@ -33,8 +33,8 @@ export class WorkOrdersController {
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.CUSTOMER)
   @Get('by-customer/:customerId')
-  findAllForCustomer(@Param('customerId') customerId: string) {
-    return this.workOrdersService.findAllForCustomer(customerId);
+  findAllForCustomer(@Param('customerId') customerId: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.workOrdersService.findAllForCustomer(customerId, user);
   }
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.MECHANIC, Role.CUSTOMER)
