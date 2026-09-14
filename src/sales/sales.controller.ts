@@ -29,6 +29,12 @@ export class SalesController {
     return this.salesService.createFromWorkOrder(workOrderId, user);
   }
 
+  @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT)
+  @Get()
+  findAllRecent() {
+    return this.salesService.findAllRecent();
+  }
+
   @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.CUSTOMER)
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: AuthenticatedUser) {

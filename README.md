@@ -88,9 +88,10 @@ que apenas se tocam (não é conflito) e separação total.
   calcula o saldo restante a partir da soma dos pagamentos já registrados e
   rejeita qualquer valor acima disso — evita saldo negativo por erro de
   digitação no caixa.
-- **`GET /appointments?date=` e `GET /work-orders`** foram adicionados para dar
-  suporte ao painel administrativo (`aldocars-painel`): antes só existiam
-  consultas de agendamento/OS por cliente, sem visão geral para a equipe.
+- **`GET /appointments?date=`, `GET /work-orders` e `GET /sales`** foram
+  adicionados para dar suporte ao painel administrativo (`aldocars-painel`):
+  antes só existiam consultas de agendamento/OS/venda por cliente, sem visão
+  geral para a equipe.
 
 ## Roadmap (próximas fases)
 

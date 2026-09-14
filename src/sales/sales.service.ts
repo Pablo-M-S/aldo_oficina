@@ -134,6 +134,20 @@ export class SalesService {
   }
 
   /**
+   * Visão administrativa: vendas recentes de todos os clientes, com o saldo
+   * já calculado — evita que o painel precise buscar pagamentos à parte.
+   */
+  async findAllRecent(limit = 50) {
+    const sales = await this.prisma.sale.findMany({
+      include: { items: true, payments: true, customer: { include: { user: { select: { name: true } } } } },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+
+    return sales.map((sale) => ({ ...sale, ...this.computeBalance(sale) }));
+  }
+
+  /**
    * Registra um pagamento contra o saldo em aberto da venda. Rejeita
    * pagamento acima do saldo restante — evita saldo negativo por erro de
    * digitação no caixa.
