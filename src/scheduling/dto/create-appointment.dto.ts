@@ -17,9 +17,14 @@ export class CreateAppointmentDto {
   @IsUUID()
   serviceId: string;
 
-  @ApiProperty({ description: 'Recurso escolhido (elevador, box, mecânico) para o horário' })
+  @ApiPropertyOptional({
+    description:
+      'Recurso escolhido manualmente (uso do staff). Se omitido, o backend seleciona ' +
+      'automaticamente o primeiro recurso compatível e livre — uso típico do site/app do cliente.',
+  })
+  @IsOptional()
   @IsUUID()
-  resourceId: string;
+  resourceId?: string;
 
   @ApiProperty({ example: '2026-09-15T09:00:00-03:00' })
   @IsDateString()

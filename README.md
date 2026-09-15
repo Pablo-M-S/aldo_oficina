@@ -102,6 +102,13 @@ que apenas se tocam (não é conflito) e separação total.
   usuário, senão retorna 403. Também foi adicionado `GET /customers/me`,
   para o próprio cliente descobrir seu `customerId` sem precisar sabê-lo de
   antemão — necessário para o site do cliente (`aldocars-site`) funcionar.
+- **`resourceId` agora é opcional em `POST /appointments` e
+  `POST /appointments/availability`.** Quando informado (uso do staff), o
+  comportamento é o mesmo de antes. Quando omitido, o backend agrega a
+  disponibilidade de todos os recursos compatíveis com o serviço e, na
+  confirmação, escolhe automaticamente o primeiro recurso livre — o cliente
+  no site/app nunca precisa saber o que é um "Elevador 2", só escolhe
+  serviço e horário.
 
 ## Roadmap (próximas fases)
 
