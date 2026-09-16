@@ -19,7 +19,7 @@ export class InventoryController {
     return this.inventoryService.create(dto);
   }
 
-  @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.MECHANIC)
+  @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.MECHANIC, Role.CUSTOMER)
   @Get()
   findAll() {
     return this.inventoryService.findAll();

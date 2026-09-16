@@ -41,6 +41,28 @@ export class SchedulingService {
     return ownCustomer.id;
   }
 
+  private async assertCanAccessCustomer(customerId: string, requester: AuthenticatedUser): Promise<void> {
+    if (requester.role !== Role.CUSTOMER) return;
+    const ownCustomer = await this.prisma.customer.findUnique({ where: { userId: requester.sub } });
+    if (!ownCustomer || ownCustomer.id !== customerId) {
+      throw new ForbiddenException('Você não tem acesso aos dados deste cliente.');
+    }
+  }
+
+  /**
+   * Agendamentos futuros e passados de um cliente específico — usado pelo
+   * site/app do cliente para listar e permitir cancelamento. Segue o mesmo
+   * padrão de checagem de dono das outras consultas "por cliente".
+   */
+  async findAllForCustomer(customerId: string, requester: AuthenticatedUser) {
+    await this.assertCanAccessCustomer(customerId, requester);
+    return this.prisma.appointment.findMany({
+      where: { customerId },
+      include: { service: true, vehicle: true },
+      orderBy: { startsAt: 'desc' },
+    });
+  }
+
   /**
    * Cria um agendamento garantindo, de forma atômica, que o recurso escolhido
    * não tenha nenhum outro compromisso sobreposto no intervalo solicitado.

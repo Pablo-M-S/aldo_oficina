@@ -113,6 +113,11 @@ que apenas se tocam (não é conflito) e separação total.
   `findAllForCustomer` (antes só traziam `serviceId`/`productId` cru) —
   necessário pro histórico do cliente no site fazer sentido sem uma segunda
   consulta.
+- **`GET /appointments/by-customer/:customerId`** foi adicionado — o
+  cliente precisa listar os próprios agendamentos pra poder cancelar pelo
+  site/app, não só criar.
+- **`GET /products` liberado para o papel CUSTOMER.** Antes só staff via o
+  catálogo — necessário pro carrinho/checkout de produtos no site.
 
 ## Roadmap (próximas fases)
 

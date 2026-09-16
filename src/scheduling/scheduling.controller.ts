@@ -28,6 +28,12 @@ export class SchedulingController {
   }
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.CUSTOMER)
+  @Get('by-customer/:customerId')
+  findAllForCustomer(@Param('customerId') customerId: string, @CurrentUser() user: AuthenticatedUser) {
+    return this.schedulingService.findAllForCustomer(customerId, user);
+  }
+
+  @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.CUSTOMER)
   @Post('availability')
   checkAvailability(@Query() dto: CheckAvailabilityDto) {
     return this.schedulingService.checkAvailability(dto);
