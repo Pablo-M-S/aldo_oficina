@@ -129,7 +129,10 @@ export class SalesService {
     await this.assertCanAccessCustomer(customerId, requester);
     return this.prisma.sale.findMany({
       where: { customerId },
-      include: { items: true, payments: true },
+      include: {
+        items: { include: { product: { select: { name: true } } } },
+        payments: true,
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

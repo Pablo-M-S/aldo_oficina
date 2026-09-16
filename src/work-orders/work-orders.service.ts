@@ -103,7 +103,14 @@ export class WorkOrdersService {
     await this.assertCanAccessCustomer(customerId, requester);
     return this.prisma.workOrder.findMany({
       where: { customerId },
-      include: { items: true },
+      include: {
+        items: {
+          include: {
+            service: { select: { name: true } },
+            product: { select: { name: true } },
+          },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
   }

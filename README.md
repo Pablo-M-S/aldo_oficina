@@ -109,6 +109,10 @@ que apenas se tocam (não é conflito) e separação total.
   confirmação, escolhe automaticamente o primeiro recurso livre — o cliente
   no site/app nunca precisa saber o que é um "Elevador 2", só escolhe
   serviço e horário.
+- **Itens de OS e venda agora vêm com o nome do serviço/produto** em
+  `findAllForCustomer` (antes só traziam `serviceId`/`productId` cru) —
+  necessário pro histórico do cliente no site fazer sentido sem uma segunda
+  consulta.
 
 ## Roadmap (próximas fases)
 
