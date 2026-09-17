@@ -167,6 +167,9 @@ export class WorkOrdersService {
       if (dto.productId) {
         await this.inventoryService.consumeForWorkOrder(tx, dto.productId, quantity);
         const product = await tx.product.findUnique({ where: { id: dto.productId } });
+        if (!product) {
+          throw new NotFoundException('Produto não encontrado.');
+        }
         unitPrice = dto.unitPriceOverride ?? Number(product.price);
       } else {
         const service = await tx.service.findUnique({ where: { id: dto.serviceId } });
@@ -197,6 +200,10 @@ export class WorkOrdersService {
       tx.workOrderItem.findMany({ where: { workOrderId } }),
       tx.workOrder.findUnique({ where: { id: workOrderId } }),
     ]);
+
+    if (!workOrder) {
+      throw new NotFoundException('Ordem de serviço não encontrada.');
+    }
 
     const itemsTotal = items.reduce(
       (sum: number, item: any) => sum + Number(item.unitPrice) * item.quantity,
