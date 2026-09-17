@@ -155,7 +155,8 @@ export class WorkOrdersService {
     if (!workOrder) {
       throw new NotFoundException('Ordem de serviço não encontrada.');
     }
-    if ([WorkOrderStatus.CANCELLED, WorkOrderStatus.DELIVERED].includes(workOrder.status)) {
+    const finalStatuses: WorkOrderStatus[] = [WorkOrderStatus.CANCELLED, WorkOrderStatus.DELIVERED];
+    if (finalStatuses.includes(workOrder.status)) {
       throw new BadRequestException('Não é possível lançar itens em uma OS finalizada.');
     }
 
