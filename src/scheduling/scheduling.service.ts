@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, ResourceType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { CheckAvailabilityDto } from './dto/check-availability.dto';
@@ -200,7 +200,7 @@ export class SchedulingService {
     }
   }
 
-  private async findCompatibleResources(requiredResourceType: string | null) {
+  private async findCompatibleResources(requiredResourceType: ResourceType | null) {
     return this.prisma.resource.findMany({
       where: {
         isActive: true,
