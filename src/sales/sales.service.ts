@@ -54,6 +54,9 @@ export class SalesService {
       for (const item of dto.items) {
         await this.inventoryService.consumeForSale(tx, item.productId, item.quantity);
         const product = await tx.product.findUnique({ where: { id: item.productId } });
+        if (!product) {
+          throw new NotFoundException('Produto não encontrado.');
+        }
 
         // Override de preço só é honrado quando quem vende é staff — o
         // cliente nunca define o próprio preço no checkout.
