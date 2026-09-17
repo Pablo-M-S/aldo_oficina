@@ -32,3 +32,11 @@ export function addMinutes(start: Date, minutes: number): Date {
 export function isValidInterval(interval: TimeInterval): boolean {
   return interval.startsAt.getTime() < interval.endsAt.getTime();
 }
+
+/**
+ * `referenceNow` existe só pra permitir teste determinístico (injetar um
+ * "agora" fixo); em produção sempre é chamada sem o segundo argumento.
+ */
+export function isInPast(date: Date, referenceNow: Date = new Date()): boolean {
+  return date.getTime() < referenceNow.getTime();
+}

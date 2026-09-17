@@ -11,7 +11,8 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { CheckAvailabilityDto } from './dto/check-availability.dto';
 import { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { Role } from '../common/enums/role.enum';
-import { addMinutes, hasConflict, isValidInterval, TimeInterval } from './interval.utils';
+import { NotificationsService } from '../notifications/notifications.service';
+import { addMinutes, hasConflict, isInPast, isValidInterval, TimeInterval } from './interval.utils';
 
 const BUSINESS_START_HOUR = 8;
 const BUSINESS_END_HOUR = 18;
@@ -19,7 +20,10 @@ const SLOT_STEP_MINUTES = 30;
 
 @Injectable()
 export class SchedulingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   private async resolveCustomerId(
     requestedCustomerId: string | undefined,
@@ -100,6 +104,18 @@ export class SchedulingService {
       throw new BadRequestException('Intervalo de agendamento inválido.');
     }
 
+    // Checagem redundante com o filtro em computeFreeSlots de propósito:
+    // aquele filtro só protege quem passa pelo fluxo normal de consultar
+    // disponibilidade antes de confirmar. Esta rota aceita startsAt direto
+    // do cliente, então precisa da mesma garantia mesmo se a consulta de
+    // disponibilidade for pulada (staff criando na mão, ou um startsAt
+    // manipulado diretamente na requisição).
+    if (isInPast(startsAt)) {
+      throw new BadRequestException('Não é possível agendar um horário no passado.');
+    }
+
+    let appointment;
+
     if (dto.resourceId) {
       const resource = await this.prisma.resource.findUnique({ where: { id: dto.resourceId } });
       if (!resource || !resource.isActive) {
@@ -111,7 +127,7 @@ export class SchedulingService {
         );
       }
 
-      return this.createAppointmentOnResource(dto.resourceId, {
+      appointment = await this.createAppointmentOnResource(dto.resourceId, {
         customerId,
         vehicleId: dto.vehicleId,
         serviceId: dto.serviceId,
@@ -119,35 +135,69 @@ export class SchedulingService {
         endsAt,
         notes: dto.notes,
       });
-    }
+    } else {
+      const candidateResources = await this.findCompatibleResources(service.requiredResourceType);
+      if (candidateResources.length === 0) {
+        throw new NotFoundException('Nenhum recurso disponível para este tipo de serviço.');
+      }
 
-    const candidateResources = await this.findCompatibleResources(service.requiredResourceType);
-    if (candidateResources.length === 0) {
-      throw new NotFoundException('Nenhum recurso disponível para este tipo de serviço.');
-    }
+      for (const resource of candidateResources) {
+        try {
+          appointment = await this.createAppointmentOnResource(resource.id, {
+            customerId,
+            vehicleId: dto.vehicleId,
+            serviceId: dto.serviceId,
+            startsAt,
+            endsAt,
+            notes: dto.notes,
+          });
+          break;
+        } catch (error) {
+          // Este recurso específico estava ocupado — tenta o próximo. Qualquer
+          // outro tipo de erro (não relacionado a conflito de horário) deve
+          // interromper a tentativa e subir normalmente.
+          if (error instanceof ConflictException) continue;
+          throw error;
+        }
+      }
 
-    for (const resource of candidateResources) {
-      try {
-        return await this.createAppointmentOnResource(resource.id, {
-          customerId,
-          vehicleId: dto.vehicleId,
-          serviceId: dto.serviceId,
-          startsAt,
-          endsAt,
-          notes: dto.notes,
-        });
-      } catch (error) {
-        // Este recurso específico estava ocupado — tenta o próximo. Qualquer
-        // outro tipo de erro (não relacionado a conflito de horário) deve
-        // interromper a tentativa e subir normalmente.
-        if (error instanceof ConflictException) continue;
-        throw error;
+      if (!appointment) {
+        throw new ConflictException(
+          'Não há recurso livre para este serviço nesse horário. Escolha outro horário.',
+        );
       }
     }
 
-    throw new ConflictException(
-      'Não há recurso livre para este serviço nesse horário. Escolha outro horário.',
-    );
+    // Notificação é best-effort (nunca lança — ver NotificationsService) e
+    // roda em fire-and-forget: uma falha de push nunca pode atrasar ou
+    // derrubar a resposta de um agendamento que já foi criado com sucesso.
+    void this.notifyCustomer(customerId, {
+      title: 'Agendamento confirmado',
+      body: `${service.name} agendado para ${startsAt.toLocaleString('pt-BR')}.`,
+      data: { type: 'appointment_created', appointmentId: appointment.id },
+    });
+
+    return appointment;
+  }
+
+  private async notifyCustomer(
+    customerId: string,
+    message: { title: string; body: string; data: Record<string, unknown> },
+  ): Promise<void> {
+    // Chamado com `void` (fire-and-forget) por quem cria/cancela o
+    // agendamento — por isso nunca pode deixar uma exceção escapar daqui,
+    // ou vira unhandled rejection.
+    try {
+      const customer = await this.prisma.customer.findUnique({
+        where: { id: customerId },
+        select: { userId: true },
+      });
+      if (customer) {
+        await this.notificationsService.notifyUser(customer.userId, message);
+      }
+    } catch {
+      // notifyUser já loga internamente; aqui só garantimos que nada escapa.
+    }
   }
 
   private async findCompatibleResources(requiredResourceType: string | null) {
@@ -223,10 +273,20 @@ export class SchedulingService {
       throw new ForbiddenException('Você não pode cancelar este agendamento.');
     }
 
-    return this.prisma.appointment.update({
+    const updated = await this.prisma.appointment.update({
       where: { id },
       data: { status: 'CANCELLED' },
     });
+
+    if (isStaff) {
+      void this.notificationsService.notifyUser(appointment.customer.userId, {
+        title: 'Agendamento cancelado',
+        body: 'A oficina cancelou seu agendamento.',
+        data: { type: 'appointment_cancelled', appointmentId: id },
+      });
+    }
+
+    return updated;
   }
 
   /**
@@ -324,7 +384,7 @@ export class SchedulingService {
       if (candidateEnd > windowEnd) break;
 
       const candidate: TimeInterval = { startsAt: new Date(cursor), endsAt: candidateEnd };
-      if (!hasConflict(candidate, existing)) {
+      if (!isInPast(candidate.startsAt) && !hasConflict(candidate, existing)) {
         slots.push(candidate);
       }
 
