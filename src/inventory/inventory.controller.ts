@@ -1,11 +1,14 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Product } from '@prisma/client';
 import { InventoryService } from './inventory.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { AdjustStockDto } from './dto/adjust-stock.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Role } from '../common/enums/role.enum';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 
 @ApiTags('inventory')
 @ApiBearerAuth()
@@ -21,8 +24,17 @@ export class InventoryController {
 
   @Roles(Role.ADMIN, Role.MANAGER, Role.ATTENDANT, Role.MECHANIC, Role.CUSTOMER)
   @Get()
-  findAll() {
-    return this.inventoryService.findAll();
+  async findAll(@CurrentUser() user: AuthenticatedUser) {
+    const products = await this.inventoryService.findAll();
+    // `cost` é o custo de aquisição do produto — a margem da oficina fica
+    // exposta se um CUSTOMER conseguir ver esse campo. As outras roles
+    // (staff) legitimamente usam `cost`, ex. no painel administrativo.
+    return user.role === Role.CUSTOMER ? products.map(this.stripCost) : products;
+  }
+
+  private stripCost(product: Product): Omit<Product, 'cost'> {
+    const { cost: _cost, ...rest } = product;
+    return rest;
   }
 
   // Dashboard administrativo: "alertas de estoque" citados no escopo original.
