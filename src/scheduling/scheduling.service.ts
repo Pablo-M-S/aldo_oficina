@@ -361,6 +361,14 @@ export class SchedulingService {
     date: string,
   ): Promise<{ startsAt: Date; endsAt: Date }[]> {
     const dayStart = new Date(`${date}T00:00:00`);
+
+    // Oficina não funciona aos fins de semana: sábado (6) e domingo (0)
+    // não têm nenhum horário livre, independente do recurso ou serviço.
+    const weekday = dayStart.getDay();
+    if (weekday === 0 || weekday === 6) {
+      return [];
+    }
+
     const windowStart = new Date(dayStart);
     windowStart.setHours(BUSINESS_START_HOUR, 0, 0, 0);
     const windowEnd = new Date(dayStart);
