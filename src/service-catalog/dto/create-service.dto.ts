@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsInt, IsNumber, IsOptional, IsPositive, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsNumber, IsOptional, IsPositive, IsString, MinLength } from 'class-validator';
 import { ResourceType } from '@prisma/client';
 
 export class CreateServiceDto {
@@ -17,6 +17,19 @@ export class CreateServiceDto {
   @IsNumber()
   @IsPositive()
   price: number;
+
+  @ApiPropertyOptional({
+    example: false,
+    description: 'Se true, o preço acima é só referência — valor final depende de avaliação presencial.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  priceIsEstimate?: boolean;
+
+  @ApiPropertyOptional({ example: 'format-paint', description: 'Nome do ícone (MaterialCommunityIcons) exibido no app.' })
+  @IsOptional()
+  @IsString()
+  iconKey?: string;
 
   @ApiProperty({ example: 30, description: 'Duração estimada em minutos' })
   @IsInt()
