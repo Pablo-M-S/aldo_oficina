@@ -16,7 +16,23 @@ import { addMinutes, hasConflict, isInPast, isValidInterval, TimeInterval } from
 
 const BUSINESS_START_HOUR = 8;
 const BUSINESS_END_HOUR = 18;
-const SLOT_STEP_MINUTES = 30;
+const SLOT_STEP_MINUTES = 15;
+
+// Usado tanto pela consulta de disponibilidade (computeFreeSlots) quanto
+// pela criação direta de agendamento (createAppointment) — precisa ser a
+// mesma regra nos dois lugares, senão um cliente pode contornar a janela
+// de horário comercial enviando um startsAt fora dela direto pra API.
+function isWithinBusinessHours(startsAt: Date, endsAt: Date): boolean {
+  const weekday = startsAt.getDay();
+  if (weekday === 0 || weekday === 6) return false;
+
+  const dayStart = new Date(startsAt);
+  dayStart.setHours(BUSINESS_START_HOUR, 0, 0, 0);
+  const dayEnd = new Date(startsAt);
+  dayEnd.setHours(BUSINESS_END_HOUR, 0, 0, 0);
+
+  return startsAt >= dayStart && endsAt <= dayEnd;
+}
 
 @Injectable()
 export class SchedulingService {
@@ -112,6 +128,12 @@ export class SchedulingService {
     // manipulado diretamente na requisição).
     if (isInPast(startsAt)) {
       throw new BadRequestException('Não é possível agendar um horário no passado.');
+    }
+
+    if (!isWithinBusinessHours(startsAt, endsAt)) {
+      throw new BadRequestException(
+        'Agendamentos só são aceitos de segunda a sexta, das 8h às 18h.',
+      );
     }
 
     let appointment;
