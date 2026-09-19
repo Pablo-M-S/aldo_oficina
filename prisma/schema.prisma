@@ -130,6 +130,8 @@ model Service {
   name               String
   description        String?
   price              Decimal  @db.Decimal(10, 2)
+  priceIsEstimate    Boolean  @default(false)
+  iconKey            String?
   durationMinutes    Int
   isActive           Boolean  @default(true)
   createdAt          DateTime @default(now())
